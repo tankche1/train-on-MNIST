@@ -5,6 +5,7 @@ from scipy.misc import imsave
 import matplotlib.image as mpimg 
 import matplotlib.pyplot as plt
 import numpy as np
+import time
 
 
 
@@ -67,23 +68,33 @@ def denoise(im, U_init, tolerance=0.1, tau=0.125, tv_weight=100):
 
     #The texture residual
     T = im - U
-    print 'Number of ROF iterations: ', iteration
+    #print 'Number of ROF iterations: ', iteration
     
     return U,T
 
-f=open('denoise_paremeters.txt','r')
-str_denoise=f.read()
-f.close()
 
-denoise_paremeters=str_denoise.split(',')
-#print(denoise_paremeters)
-denoise_tolerance=float(denoise_paremeters[0])
-denoise_tau=float(denoise_paremeters[1])
-denoise_tv_weight=float(denoise_paremeters[2])
 
-im = mpimg.imread('img.jpg')
-U,T = denoise(im,im,denoise_tolerance,denoise_tau,denoise_tv_weight)
-imsave('img_denoise.jpg',U)
+
+for i in range(1,11):
+	f=open('denoise_paremeters'+str(i)+'.txt','r')
+	str_denoise=f.read()
+	f.close()
+
+	denoise_paremeters=str_denoise.split(',')
+	#print(denoise_paremeters)
+	denoise_tolerance=float(denoise_paremeters[0])
+	denoise_tau=float(denoise_paremeters[1])
+	denoise_tv_weight=float(denoise_paremeters[2])
+	im = mpimg.imread('img'+str(i)+'.jpg')
+	U,T = denoise(im,im,denoise_tolerance,denoise_tau,denoise_tv_weight)
+	imsave('img_denoise'+str(i)+'.jpg',U)
+'''start = time.clock()
+for i in range (1,10000):
+	U,T = denoise(im,im,denoise_tolerance,denoise_tau,denoise_tv_weight)
+	
+elapsed = (time.clock() - start)
+print("Time used:",elapsed)
+'''
 
 
 

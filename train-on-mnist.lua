@@ -57,6 +57,7 @@ local opt = lapp[[
    --noise            (default fasle)           use noise or not        
    --nStep            (default 6)           maximum step the agent can perform   
    --hiddenSize       (default 128)         rnn hiddenSize   
+   --addnoise       (default false)			add noise to the jpg
 ]]
 
 -- fix seed
@@ -103,11 +104,12 @@ elseif opt.noise=='1' then
    opt.actions = {'+tolerance','-tolerance','+tau','-tau','+tv_weight','-tv_weight'}
    execute_fn = 
    	function (input,action) 
+		--local x1 = sys.clock()
 		input_processed= input:clone()
 		for i=1,opt.batchSize do
-			image.save('img.jpg', input[i])
+			image.save('img'..i..'.jpg', input[i])
 
-         execute_action = opt.actions[action[i]]
+        	execute_action = opt.actions[action[i]]
 		
 			--execute action
 			if execute_action=='+tolerance' then
@@ -126,13 +128,18 @@ elseif opt.noise=='1' then
 			--print(denoise_paremeters[i].tolerance..","..denoise_paremeters[i].tau..","..denoise_paremeters[i].tv_weight..",")
 			
 			-- deliver paremeters to python
-			file = io.open("denoise_paremeters.txt","w")
+			file = io.open('denoise_paremeters'..i..'.txt','w')
 			file:write(denoise_paremeters[i].tolerance..","..denoise_paremeters[i].tau..","..denoise_paremeters[i].tv_weight..",")
 			file:close()
-
-			os.execute('python denoise.py')
-			input_processed[i]=image.load('img_denoise.jpg')
+			
 		end
+		os.execute('python denoise.py')
+			
+		for i=1,opt.batchSize do
+			input_processed[i]=image.load('img_denoise'..i..'.jpg')
+		end
+		--x1 = sys.clock()-x1
+		--print(string.format("elapsed time: %.8f\n", x1))
 		return input_processed
 	end
 
@@ -246,10 +253,15 @@ function train(dataset)
          targets[k] = target
          k = k + 1
       end
+	  --print(inputs[1])
+	  --add noise
+	  if opt.addnoise=='1' then
+			inputs=inputs+1.0*torch.randn(opt.batchSize,1,geometry[1],geometry[2])
+	  end
 		
 	  -- reset denoise perameters
 	  if opt.noise=='1' then
-			print('Initialize denoise paremeters!!!')
+			--print('Initialize denoise paremeters!!!')
 			for i=1,opt.batchSize do
 				denoise_paremeters[i]={tolerance=0.2, tau=0.125, tv_weight=100}
 		 	end
@@ -360,7 +372,7 @@ function train(dataset)
       os.execute('mv ' .. filename .. ' ' .. filename .. '.old')
    end
    print('<trainer> saving network to '..filename)
-   -- torch.save(filename, model)
+   torch.save(filename, model)
 
    -- next epoch
    epoch = epoch + 1
@@ -393,6 +405,11 @@ function test(dataset)
          k = k + 1
       end
 		
+	  --add noise
+	  if opt.addnoise=='1' then
+			inputs=inputs+1.0*torch.randn(opt.batchSize,1,geometry[1],geometry[2])
+	  end
+		
 	  -- reset denoise perameters
 	  if opt.noise=='1' then
 			for i=1,opt.batchSize do
@@ -405,7 +422,7 @@ function test(dataset)
 
       -- confusion:
       for i = 1,opt.batchSize do
-         confusion:add(preds[i], targets[i])
+         confusion:add(preds[1][i], targets[i])
       end
    end
 
@@ -425,8 +442,10 @@ end
 --
 while true do
    -- train/test
+	
    train(trainData)
    test(testData)
+   
 
    -- plot errors
    if opt.plot then
